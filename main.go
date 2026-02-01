@@ -1,15 +1,31 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"go-categories-api/internal/model"
+	"go-categories-api/internal/database"
+	"go-categories-api/internal/handlers"
+	"go-categories-api/internal/models"
+	"go-categories-api/internal/repositories"
+	"go-categories-api/internal/services"
+	"log"
 	"net/http"
-	"strconv"
+	"os"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
+// config
+type Config struct {
+	Port          string `mapstructure:"PORT"`
+	DBConn        string `mapstructure:"DB_CONN"`
+	DBMaxOpenConn string `mapstructure:"DB_MAX_OPEN_CONNECTION"`
+	BaseURL       string `mapstructure:"BASE_URL"`
+}
+
 // data
-var categories = []model.Category{
+var categories = []models.Category{
 	{ID: 1, Name: "Animal", Description: " A living thing that moves around to find food and eats plants or other animals for energy."},
 	{ID: 2, Name: "Plant", Description: "A living thing that has leaves and roots that usually grow in the ground."},
 	{ID: 3, Name: "Bacteria", Description: "Tiny, single-celled organisms with no nucleus."},
@@ -17,46 +33,50 @@ var categories = []model.Category{
 
 // main func
 func main() {
+	// Load the env
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
+
+	config := Config{
+		Port:          viper.GetString("PORT"),
+		DBConn:        viper.GetString("DB_CONN"),
+		DBMaxOpenConn: viper.GetString("DB_MAX_OPEN_CONNECTION"),
+	}
+
+	// DB setup
+	db, err := database.InitDB(config.DBConn)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
+
+	// Define the layers
+	categoryRepo := repositories.NewCategoryRepo(db)
+	categoryService := services.NewCategoryService(categoryRepo)
+	categoryHandler := handlers.NewCategoryHandler(categoryService)
+
+	// Setup routes
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		healthCheck(w, r)
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "OK",
+			"message": "Server is running",
+		})
 	})
 
-	http.HandleFunc("/api/categories", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	http.HandleFunc("/api/categories", categoryHandler.HandleCategories)
+	http.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
 
-		switch r.Method {
-		case http.MethodGet:
-			getCategories(w)
-		case http.MethodPost:
-			createCategory(w, r)
-		}
-	})
+	// Serve the api
+	address := config.BaseURL + ":" + config.Port
+	fmt.Println("Server running on ", address)
 
-	http.HandleFunc("/api/categories/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		idStr := strings.TrimPrefix(r.URL.Path, "/api/categories/")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid ID", http.StatusBadRequest)
-			return
-		}
-
-		switch r.Method {
-		case http.MethodGet:
-			getCategoryById(w, id)
-		case http.MethodPut:
-			updateCategory(w, r, id)
-		case http.MethodDelete:
-			deleteCategory(w, id)
-		}
-	})
-
-	// serve the api
-	fmt.Println("Server running on :8080")
-
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":"+config.Port, nil)
 	if err != nil {
 		fmt.Print(err)
 	}

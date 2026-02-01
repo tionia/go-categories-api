@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"go-categories-api/internal/model"
+	"go-categories-api/internal/models"
 	"net/http"
 )
 
@@ -14,7 +14,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func createCategory(w http.ResponseWriter, r *http.Request) {
-	var newCategory model.Category
+	var newCategory models.Category
 
 	err := json.NewDecoder(r.Body).Decode(&newCategory)
 	if err != nil {
@@ -46,7 +46,7 @@ func getCategoryById(w http.ResponseWriter, id int) {
 }
 
 func updateCategory(w http.ResponseWriter, r *http.Request, id int) {
-	var categoryUpdate model.Category
+	var categoryUpdate models.Category
 
 	err := json.NewDecoder(r.Body).Decode(&categoryUpdate)
 	if err != nil {
@@ -69,7 +69,7 @@ func updateCategory(w http.ResponseWriter, r *http.Request, id int) {
 func deleteCategory(w http.ResponseWriter, id int) {
 	for i, category := range categories {
 		if category.ID == id {
-			var remainingCategories []model.Category
+			var remainingCategories []models.Category
 
 			remainingCategories = append(categories[:i], categories[i+1:]...)
 
