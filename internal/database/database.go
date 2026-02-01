@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"log"
 
-	_ "github.com/lib/pq" // not being called explicitly but the library is still needed to do sql.Open
+	_ "github.com/jackc/pgx/v5/stdlib" // registers "pgx" driver for database/sql
 )
 
 func InitDB(connectionString string) (*sql.DB, error) {
 	// Open database
-	db, err := sql.Open("postgres", connectionString)
+	db, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		return nil, err
 	}
