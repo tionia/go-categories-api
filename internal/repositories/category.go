@@ -14,9 +14,17 @@ func NewCategoryRepo(db *sql.DB) *CategoryRepo {
 	return &CategoryRepo{db: db}
 }
 
-func (repo *CategoryRepo) GetAll() ([]models.Category, error) {
+func (repo *CategoryRepo) GetAll(name string) ([]models.Category, error) {
 	query := "SELECT id, name, description FROM categories"
-	rows, err := repo.db.Query(query)
+
+	// data type can be any type --> use interface. but the interface can be multiple??
+	var args []interface{}
+	if name != "" {
+		query += " WHERE name ILIKE $1"
+		args = append(args, "%"+name+"%")
+	}
+
+	rows, err := repo.db.Query(query, args...) // adding argument to query
 	if err != nil {
 		return nil, err
 	}

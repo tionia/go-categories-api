@@ -59,6 +59,9 @@ func main() {
 	categoryRepo := repositories.NewCategoryRepo(db)
 	categoryService := services.NewCategoryService(categoryRepo)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	productRepo := repositories.NewProductRepo(db)
+	productService := services.NewProductService(productRepo)
+	productHandler := handlers.NewProductHandler(productService)
 
 	// Setup routes
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +74,9 @@ func main() {
 
 	http.HandleFunc("/api/categories", categoryHandler.HandleCategories)
 	http.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
+
+	http.HandleFunc("/api/products", productHandler.HandleProducts)
+	http.HandleFunc("/api/products/", productHandler.HandleProductByID)
 
 	// Serve the api
 	address := config.BaseURL + ":" + config.Port
